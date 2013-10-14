@@ -28,7 +28,7 @@ Here are some of the features of the RunCommand plugin:
 * Can terminate the program after a given "timeout".
 
 #####Note:
-The original purpose of the plugin was to run command through the command-line interpreter (ie. cmd.exe) without the window showing up. Once I figured that out, it was easy to pipe the output of the command into Rainmeter and set it as the plugin's "string" value. After nearly completing the plugin, I realized that any program whose output is Unicode encoded would not work properly with this plugin. Although I could probably add some sort of "Unicode detection" to the plugin, I don't have any plans to do this at this time. Again, the purpose of the command is run a command without showing the ugly command window.
+As of version 0.0.0.2, Unicode is supported. Unicode support is provided by a function called [IsTextUnicode](http://msdn.microsoft.com/en-us/library/windows/desktop/dd318672%28v=vs.85%29.aspx). This function gets a bad rap for being inaccurate in certain circumstances. However, barring thousands of lines of unicode detection code, this function seems to work most of the time for the purpose of this plugin.
 
 
 Options
@@ -59,7 +59,8 @@ Changes
 Here is a list of the major changes to the plugin.
 
 #####Version:
-* **1.0.0** - Initial Version.
+* **0.0.0.2** - Added Unicode support. Minor tweaks.
+* **0.0.0.1** - Initial Version.
 
 Download
 -
