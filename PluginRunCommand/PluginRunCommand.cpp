@@ -87,11 +87,11 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 	}
 
 	// Grab "%COMSPEC% environment variable
-	measure->program = RmReadString(rm, L"Program", RmReplaceVariables(rm, L"\"%COMSPEC%\" /C"));
+	measure->program = RmReadString(rm, L"Program", RmReplaceVariables(rm, L"\"%COMSPEC%\" /U /C"));
 	if (measure->program.empty())
 	{
 		// Assume "cmd.exe" exists!
-		measure->program = L"cmd.exe /C";
+		measure->program = L"cmd.exe /U /C";
 	}
 }
 
@@ -189,8 +189,8 @@ void RunCommand(Measure* measure)
 	WORD showWindow = 0;
 	std::wstring command;
 	std::wstring folder;
-	std::wstring result;
 	int timeout = -1;
+	std::wstring result;
 
 	// Grab values from the measure
 	{
@@ -269,7 +269,7 @@ void RunCommand(Measure* measure)
 				loadHandles[i] = INVALID_HANDLE_VALUE;
 			}
 
-			CHAR buffer[MAX_LINE_LENGTH];
+			BYTE buffer[MAX_LINE_LENGTH];
 			DWORD bytesRead = 0;
 			DWORD totalBytes = 0;
 			DWORD bytesLeft = 0;
@@ -277,9 +277,13 @@ void RunCommand(Measure* measure)
 
 			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
+			int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
+
 			// Read output of program (if any)
 			for (;;)
 			{
+				SecureZeroMemory(buffer, sizeof(buffer));
+
 				GetExitCodeProcess(pi.hProcess, &exit);
 				if (exit != STILL_ACTIVE) break;
 
@@ -293,7 +297,14 @@ void RunCommand(Measure* measure)
 							ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
 							buffer[bytesRead] = '\0';
 
-							result += Widen(buffer);
+							if (IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask))
+							{
+								result += (WCHAR*)buffer;
+							}
+							else
+							{
+								result += Widen((CHAR*)buffer);
+							}
 						}
 					}
 					else
@@ -301,7 +312,14 @@ void RunCommand(Measure* measure)
 						ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
 						buffer[bytesRead] = '\0';
 
-						result += Widen(buffer);
+						if (IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask))
+						{
+							result += (WCHAR*)buffer;
+						}
+						else
+						{
+							result += Widen((CHAR*)buffer);
+						}
 					}
 				}
 
@@ -362,7 +380,7 @@ void RunCommand(Measure* measure)
 			if (!measure->outputFile.empty())
 			{
 				FILE* file;
-				if (_wfopen_s(&file, measure->outputFile.c_str(), L"w+") == 0)
+				if (_wfopen_s(&file, measure->outputFile.c_str(), L"w+, ccs=UTF-16LE") == 0)
 				{
 					fputws(result.c_str(), file);
 				}
