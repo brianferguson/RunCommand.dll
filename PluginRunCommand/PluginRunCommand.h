@@ -55,6 +55,8 @@ struct Measure
 
 #endif
 
+
+// Widen function from Rainmeter StringUtil
 std::wstring Widen(const char* str, int strLen = -1, int cp = CP_ACP)
 {
 	std::wstring wideStr;
@@ -63,7 +65,7 @@ std::wstring Widen(const char* str, int strLen = -1, int cp = CP_ACP)
 	{
 		if (strLen == -1)
 		{
-		strLen = (int)strlen(str);
+			strLen = (int)strlen(str);
 		}
 
 		int bufLen = MultiByteToWideChar(cp, 0, str, strLen, nullptr, 0);

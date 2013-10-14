@@ -20,7 +20,7 @@
 
 #define MAX_LINE_LENGTH	4096
 
-const std::chrono::milliseconds g_LockTimeout(100);
+const std::chrono::milliseconds g_LockTimeout(200);
 const WCHAR* err_UnknownCmd = L"RunCommand.dll: Error (100) Unknown command";
 const WCHAR* err_CmdRunning = L"RunCommand.dll: Error (101) Command still running";
 const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (102) Cannot create pipe";	// Rare!
@@ -121,7 +121,7 @@ PLUGIN_EXPORT LPCWSTR GetString(void* data)
 		std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
 		// FinishAction could cause GetString to deadlock
-		// To prevent deadlock, we wait for FinishAction to finish, or timeout (is 100ms enough or too much?)
+		// To prevent deadlock, we wait for FinishAction to finish, or timeout (is 200ms enough or too much?)
 		while (std::chrono::duration_cast<std::chrono::milliseconds>
 			  (std::chrono::system_clock::now() - start) < g_LockTimeout)
 		{
