@@ -68,7 +68,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 	measure->folder = RmReadPath(rm, L"StartInFolder", L" ");	// Space is intentional!
 	measure->timeout = RmReadInt(rm, L"Timeout", -1);
 
-	const WCHAR* state = RmReadString(rm, L"State", L"Hide");
+	const WCHAR* state = RmReadString(rm, L"State", L"HIDE");
 	if (_wcsicmp(state, L"SHOW") == 0)
 	{
 		measure->state = SW_SHOW;
@@ -92,6 +92,20 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 	{
 		// Assume "cmd.exe" exists!
 		measure->program = L"cmd.exe /U /C";
+	}
+
+	const WCHAR* outType = RmReadString(rm, L"OutputType", L"AUTO");
+	if (_wcsicmp(outType, L"ANSI") == 0)
+	{
+		measure->outputType = OUTPUTTYPE_ANSI;
+	}
+	else if (_wcsicmp(outType, L"UNICODE") == 0)
+	{
+		measure->outputType = OUTPUTTYPE_UNICODE;
+	}
+	else
+	{
+		measure->outputType = OUTPUTTYPE_AUTO;
 	}
 }
 
@@ -191,6 +205,8 @@ void RunCommand(Measure* measure)
 	std::wstring folder;
 	int timeout = -1;
 	std::wstring result;
+	OutputType type;
+	bool isUnicode = false;
 
 	// Grab values from the measure
 	{
@@ -203,6 +219,8 @@ void RunCommand(Measure* measure)
 		command = measure->program;
 		command += L" ";
 		command += measure->parameter;
+
+		type = measure->outputType;
 	}
 
 	HANDLE read = nullptr;
@@ -278,6 +296,22 @@ void RunCommand(Measure* measure)
 			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
 			int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
+			unicodeMask ^= IS_TEXT_UNICODE_CONTROLS | IS_TEXT_UNICODE_REVERSE_CONTROLS;	// remove controls mask
+
+			auto SetResult = [&](BYTE* buffer)
+			{
+				if (type == OUTPUTTYPE_UNICODE ||
+				   (type == OUTPUTTYPE_AUTO && IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
+				{
+					result += (WCHAR*)buffer;
+					isUnicode = true;
+				}
+				else
+				{
+					result += Widen((CHAR*)buffer);
+					isUnicode = false;
+				}
+			};
 
 			// Read output of program (if any)
 			for (;;)
@@ -297,14 +331,7 @@ void RunCommand(Measure* measure)
 							ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
 							buffer[bytesRead] = '\0';
 
-							if (IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask))
-							{
-								result += (WCHAR*)buffer;
-							}
-							else
-							{
-								result += Widen((CHAR*)buffer);
-							}
+							SetResult(buffer);
 						}
 					}
 					else
@@ -312,14 +339,7 @@ void RunCommand(Measure* measure)
 						ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
 						buffer[bytesRead] = '\0';
 
-						if (IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask))
-						{
-							result += (WCHAR*)buffer;
-						}
-						else
-						{
-							result += Widen((CHAR*)buffer);
-						}
+						SetResult(buffer);
 					}
 				}
 
@@ -380,7 +400,7 @@ void RunCommand(Measure* measure)
 			if (!measure->outputFile.empty())
 			{
 				FILE* file;
-				if (_wfopen_s(&file, measure->outputFile.c_str(), L"w+, ccs=UTF-16LE") == 0)
+				if (_wfopen_s(&file, measure->outputFile.c_str(), isUnicode ? L"w+, ccs=UTF-16LE" : L"w+") == 0)
 				{
 					fputws(result.c_str(), file);
 				}

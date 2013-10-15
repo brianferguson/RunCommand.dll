@@ -21,6 +21,13 @@
 #ifndef __PLUGINRUNCOMMAND_H__
 #define __PLUGINRUNCOMMAND_H__
 
+enum OutputType
+{
+	OUTPUTTYPE_AUTO,
+	OUTPUTTYPE_ANSI,
+	OUTPUTTYPE_UNICODE
+};
+
 struct Measure
 {
 	// Options
@@ -31,6 +38,7 @@ struct Measure
 	std::wstring folder;
 	WORD state;
 	int timeout;
+	OutputType outputType;
 
 	// Internal values
 	std::wstring result;
@@ -46,6 +54,7 @@ struct Measure
 		folder(),
 		state(0),
 		timeout(-1),
+		outputType(OUTPUTTYPE_AUTO),
 		result(),
 		mutex(),
 		threadActive(false),
