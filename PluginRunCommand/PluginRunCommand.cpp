@@ -54,6 +54,7 @@ PLUGIN_EXPORT void Initialize(void** data, void* rm)
 	*data = measure;
 
 	measure->skin = RmGetSkin(rm);
+	measure->hwnd = RmGetSkinWindow(rm);
 }
 
 PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
@@ -206,6 +207,7 @@ void RunCommand(Measure* measure)
 	int timeout = -1;
 	std::wstring result;
 	OutputType type;
+	HWND skinHWND;
 	bool isUnicode = false;
 
 	// Grab values from the measure
@@ -221,6 +223,7 @@ void RunCommand(Measure* measure)
 		command += measure->parameter;
 
 		type = measure->outputType;
+		skinHWND = measure->hwnd;
 	}
 
 	HANDLE read = nullptr;
@@ -301,7 +304,7 @@ void RunCommand(Measure* measure)
 			auto SetResult = [&](BYTE* buffer)
 			{
 				if (type == OUTPUTTYPE_UNICODE ||
-				   (type == OUTPUTTYPE_AUTO && IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
+					(type == OUTPUTTYPE_AUTO && IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
 				{
 					result += (WCHAR*)buffer;
 					isUnicode = true;
@@ -343,9 +346,9 @@ void RunCommand(Measure* measure)
 					}
 				}
 
-				if (timeout >= 0 &&
+				if (!IsWindow(skinHWND) || (timeout >= 0 &&
 					std::chrono::duration_cast<std::chrono::milliseconds>
-					(std::chrono::system_clock::now() - start).count() > timeout)
+					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
 					if (!TerminateApp(pi.hProcess, (DWORD)timeout))
 					{
@@ -400,7 +403,8 @@ void RunCommand(Measure* measure)
 			if (!measure->outputFile.empty())
 			{
 				FILE* file;
-				if (_wfopen_s(&file, measure->outputFile.c_str(), isUnicode ? L"w+, ccs=UTF-16LE" : L"w+") == 0)
+				if (_wfopen_s(&file, measure->outputFile.c_str(),
+					isUnicode ? L"w+, ccs=UTF-16LE" : L"w+") == 0)
 				{
 					fputws(result.c_str(), file);
 				}

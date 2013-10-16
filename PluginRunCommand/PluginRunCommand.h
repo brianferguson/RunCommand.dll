@@ -45,6 +45,7 @@ struct Measure
 	std::recursive_mutex mutex;
 	bool threadActive;
 	void* skin;
+	HWND hwnd;
 
 	Measure() :
 		program(),
@@ -58,7 +59,8 @@ struct Measure
 		result(),
 		mutex(),
 		threadActive(false),
-		skin()
+		skin(),
+		hwnd()
 		{ }
 };
 
