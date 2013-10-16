@@ -20,7 +20,7 @@
 
 #define MAX_LINE_LENGTH	4096
 
-const std::chrono::milliseconds g_LockTimeout(200);
+const std::chrono::milliseconds g_LockTimeout(500);
 const WCHAR* err_UnknownCmd = L"RunCommand.dll: Error (100) Unknown command";
 const WCHAR* err_CmdRunning = L"RunCommand.dll: Error (101) Command still running";
 const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (102) Cannot create pipe";	// Rare!
