@@ -29,7 +29,7 @@ const WCHAR* err_Terminate  = L"RunCommand.dll: Error (104) Cannot terminate pro
 const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (105) Cannot save file";
 
 void RunCommand(Measure* measure);
-BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD dwTimeout);
+BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, DWORD dwTimeout);
 BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam);
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
@@ -346,11 +346,12 @@ void RunCommand(Measure* measure)
 					}
 				}
 
+				// Close program if skin is closed or timeout is reached (if exists)
 				if (!IsWindow(skinHWND) || (timeout >= 0 &&
 					std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
-					if (!TerminateApp(pi.hProcess, (DWORD)timeout))
+					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (DWORD)timeout))
 					{
 						RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 					}
@@ -382,12 +383,11 @@ void RunCommand(Measure* measure)
 	CloseHandle(write);
 	CloseHandle(read);
 
-	// Convert "\r\n" to "\n"
-	size_t pos = result.find(L"\r\n");
-	while (pos != std::wstring::npos)
+	// Remove any carriage returns
+	size_t pos = 0;
+	while ((pos = result.find(L"\r", pos)) != std::wstring::npos)
 	{
-		result.replace(pos, 2, L"\n");
-		pos = result.find(L"\r\n");
+		result.erase(pos++, 1);
 	}
 
 	HMODULE module = nullptr;
@@ -442,9 +442,8 @@ void RunCommand(Measure* measure)
 }
 
 // Terminate "cleanly" per KB178893
-BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD dwTimeout)
+BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, DWORD dwTimeout)
 {
-	DWORD dwPID = GetProcessId(hProc);
 	BOOL ret = FALSE;
 
 	EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) dwPID);
