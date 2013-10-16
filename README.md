@@ -43,6 +43,10 @@ Options
   * **Maximize** - Attempts to start the program maximized.
 * **FinishAction** - Action that runs after the program has exited.
 * **OutputFile** - File where the output is saved.
+* **OutputType** - Type of output that is *expected.
+  * **Auto** - This attempts to detect if Unicode is the output of the program (if any). If it is Unicode, the OutputFile will be UTF-16LE encoded - otherwise, it will be ANSI encoded.
+  * **Ansi** - Output is expected to be Ansi encoded. The OutputFile will be Ansi encoded.
+  * **Unicode** - Output is expected to be Unicode encoded. The OutputFile will be UTF-16LE encoded.
 * **StartInFolder** - Starts the program in this folder.
 * **Timeout** - In milliseconds. If positive, will close the program after the given time. The default is `-1`. Even if the close is cancelled, the program will still close after another "timeout" value. For example: If you open notepad with a timeout of 5 seconds, and make a change within those 5 seconds and cancel when asked to save the file...notepad will still close after another 5 seconds.
 
@@ -59,6 +63,7 @@ Changes
 Here is a list of the major changes to the plugin.
 
 #####Version:
+* **0.0.0.3** - Fixed Unicode detection. Added OutputType. Hidden program now close if the skin and/or Rainmeter is closed.
 * **0.0.0.2** - Added Unicode support. Minor tweaks.
 * **0.0.0.1** - Initial Version.
 
@@ -92,7 +97,7 @@ Examples
 -
 
 ####Example 1:
-Click on each command and watch the output will appear in the "output" meter (if any output is expected).
+Click on each command and the output will appear in the "output" meter (if any output is expected).
 
 ```ini
 [Rainmeter]
@@ -164,8 +169,8 @@ LeftMouseUpAction=!CommandMeasure Command_4 Run
 Meter=String
 MeasureName=Command_1
 Y=5R
-W=550
-H=150
+W=575
+H=200
 ClipString=1
 FontColor=255,255,255
 FontFace=Lucida Console
