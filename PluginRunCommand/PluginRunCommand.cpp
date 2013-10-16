@@ -207,7 +207,7 @@ void RunCommand(Measure* measure)
 	int timeout = -1;
 	std::wstring result;
 	OutputType type;
-	HWND skinHWND;
+	HWND hwnd;
 	bool isUnicode = false;
 
 	// Grab values from the measure
@@ -223,7 +223,7 @@ void RunCommand(Measure* measure)
 		command += measure->parameter;
 
 		type = measure->outputType;
-		skinHWND = measure->hwnd;
+		hwnd = measure->hwnd;
 	}
 
 	HANDLE read = nullptr;
@@ -295,16 +295,14 @@ void RunCommand(Measure* measure)
 			DWORD totalBytes = 0;
 			DWORD bytesLeft = 0;
 			DWORD exit = 0;
-
-			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
-
+			
 			int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
 			unicodeMask ^= IS_TEXT_UNICODE_CONTROLS | IS_TEXT_UNICODE_REVERSE_CONTROLS;	// remove controls mask
 
 			auto SetResult = [&](BYTE* buffer)
 			{
-				if (type == OUTPUTTYPE_UNICODE ||
-					(type == OUTPUTTYPE_AUTO && IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
+				if (type == OUTPUTTYPE_UNICODE || (type == OUTPUTTYPE_AUTO &&
+					IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
 				{
 					result += (WCHAR*)buffer;
 					isUnicode = true;
@@ -315,6 +313,8 @@ void RunCommand(Measure* measure)
 					isUnicode = false;
 				}
 			};
+
+			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
 			// Read output of program (if any)
 			for (;;)
@@ -346,9 +346,9 @@ void RunCommand(Measure* measure)
 					}
 				}
 
-				// Close program if skin is closed or timeout is reached (if exists)
-				if (!IsWindow(skinHWND) || (timeout >= 0 &&
-					std::chrono::duration_cast<std::chrono::milliseconds>
+				// Close hidden program if skin is closed or timeout is reached (if exists)
+				if ((showWindow == SW_HIDE && !IsWindow(hwnd)) ||
+					(timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
 					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (DWORD)timeout))
