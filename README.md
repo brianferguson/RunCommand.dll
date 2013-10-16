@@ -43,7 +43,7 @@ Options
   * **Maximize** - Attempts to start the program maximized.
 * **FinishAction** - Action that runs after the program has exited.
 * **OutputFile** - File where the output is saved.
-* **OutputType** - Type of output that is *expected.
+* **OutputType** - Type of output that is **expected**.
   * **Auto** - This attempts to detect if Unicode is the output of the program (if any). If it is Unicode, the OutputFile will be UTF-16LE encoded - otherwise, it will be ANSI encoded.
   * **Ansi** - Output is expected to be Ansi encoded. The OutputFile will be Ansi encoded.
   * **Unicode** - Output is expected to be Unicode encoded. The OutputFile will be UTF-16LE encoded.
