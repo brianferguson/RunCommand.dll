@@ -20,7 +20,6 @@
 
 #define MAX_LINE_LENGTH	4096
 
-const std::chrono::milliseconds g_LockTimeout(500);
 const WCHAR* err_UnknownCmd = L"RunCommand.dll: Error (100) Unknown command";
 const WCHAR* err_CmdRunning = L"RunCommand.dll: Error (101) Command still running";
 const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (102) Cannot create pipe";	// Rare!
@@ -130,21 +129,14 @@ PLUGIN_EXPORT double Update(void* data)
 PLUGIN_EXPORT LPCWSTR GetString(void* data)
 {
 	Measure* measure = (Measure*)data;
-	
+
 	{
 		std::unique_lock<std::recursive_mutex> lock(measure->mutex, std::defer_lock);
-		std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
-		// FinishAction could cause GetString to deadlock
-		// To prevent deadlock, we wait for FinishAction to finish, or timeout (is 200ms enough or too much?)
-		while (std::chrono::duration_cast<std::chrono::milliseconds>
-			  (std::chrono::system_clock::now() - start) < g_LockTimeout)
+		if (lock.try_lock())
 		{
-			if (lock.try_lock())
-			{
-				return measure->result.c_str();
-				lock.unlock();
-			}
+			return measure->result.c_str();
+			lock.unlock();
 		}
 	}
 
