@@ -23,9 +23,9 @@
 
 enum OutputType
 {
-	OUTPUTTYPE_AUTO,
 	OUTPUTTYPE_ANSI,
-	OUTPUTTYPE_UNICODE
+	OUTPUTTYPE_UTF8,
+	OUTPUTTYPE_UTF16
 };
 
 struct Measure
@@ -55,7 +55,7 @@ struct Measure
 		folder(),
 		state(0),
 		timeout(-1),
-		outputType(OUTPUTTYPE_AUTO),
+		outputType(OUTPUTTYPE_UTF16),
 		result(),
 		mutex(),
 		threadActive(false),
@@ -65,26 +65,3 @@ struct Measure
 };
 
 #endif
-
-
-// Widen function from Rainmeter StringUtil
-std::wstring Widen(const char* str, int strLen = -1, int cp = CP_ACP)
-{
-	std::wstring wideStr;
-
-	if (str && *str)
-	{
-		if (strLen == -1)
-		{
-			strLen = (int)strlen(str);
-		}
-
-		int bufLen = MultiByteToWideChar(cp, 0, str, strLen, nullptr, 0);
-		if (bufLen > 0)
-		{
-			wideStr.resize(bufLen);
-			MultiByteToWideChar(cp, 0, str, strLen, &wideStr[0], bufLen);
-		}
-	}
-	return wideStr;
-}

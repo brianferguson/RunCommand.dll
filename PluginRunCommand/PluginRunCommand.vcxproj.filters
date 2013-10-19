@@ -5,9 +5,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PluginRunCommand.cpp" />
+    <ClCompile Include="StringUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PluginRunCommand.h" />
     <ClInclude Include="Stdafx.h" />
+    <ClInclude Include="StringUtil.h" />
   </ItemGroup>
 </Project>

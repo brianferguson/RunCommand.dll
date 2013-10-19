@@ -29,4 +29,7 @@
 // Rainmeter API
 #include "../RainmeterAPI/RainmeterAPI.h"
 
+// Rainmeter String Utility library
+#include "StringUtil.h"
+
 #endif

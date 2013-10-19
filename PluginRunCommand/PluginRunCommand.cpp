@@ -94,18 +94,18 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 		measure->program = L"cmd.exe /U /C";
 	}
 
-	const WCHAR* outType = RmReadString(rm, L"OutputType", L"AUTO");
-	if (_wcsicmp(outType, L"ANSI") == 0)
+	const WCHAR* type = RmReadString(rm, L"OutputType", L"UTF16");
+	if (_wcsicmp(type, L"ANSI") == 0)
 	{
 		measure->outputType = OUTPUTTYPE_ANSI;
 	}
-	else if (_wcsicmp(outType, L"UNICODE") == 0)
+	else if (_wcsicmp(type, L"UTF8") == 0)
 	{
-		measure->outputType = OUTPUTTYPE_UNICODE;
+		measure->outputType = OUTPUTTYPE_UTF8;
 	}
 	else
 	{
-		measure->outputType = OUTPUTTYPE_AUTO;
+		measure->outputType = OUTPUTTYPE_UTF16;
 	}
 }
 
@@ -200,7 +200,6 @@ void RunCommand(Measure* measure)
 	std::wstring result;
 	OutputType type;
 	HWND hwnd;
-	bool isUnicode = false;
 
 	// Grab values from the measure
 	{
@@ -250,28 +249,28 @@ void RunCommand(Measure* measure)
 		DuplicateHandle(hProc, loadHandles[0], hProc, &read, 0, FALSE, DUPLICATE_SAME_ACCESS) &&
 		DuplicateHandle(hProc, loadHandles[2], hProc, &write, 0, FALSE, DUPLICATE_SAME_ACCESS))
 	{
-		// 
 		BYTE buffer[MAX_LINE_LENGTH];
 		DWORD bytesRead = 0;
 		DWORD totalBytes = 0;
 		DWORD bytesLeft = 0;
 		DWORD exit = 0;
-			
-		int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
-		unicodeMask ^= IS_TEXT_UNICODE_CONTROLS | IS_TEXT_UNICODE_REVERSE_CONTROLS;	// remove controls mask
 
 		auto SetResult = [&](BYTE* buffer)
 		{
-			if (type == OUTPUTTYPE_UNICODE || (type == OUTPUTTYPE_AUTO &&
-				IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
+			switch (type)
 			{
-				result += (WCHAR*)buffer;
-				isUnicode = true;
-			}
-			else
-			{
-				result += Widen((CHAR*)buffer);
-				isUnicode = false;
+			case OUTPUTTYPE_ANSI:
+				result += StringUtil::Widen((LPCSTR)buffer);
+				break;
+
+			case OUTPUTTYPE_UTF8:
+				result += StringUtil::WidenUTF8((LPCSTR)buffer);
+				break;
+
+			default:
+			case OUTPUTTYPE_UTF16:
+				result += (LPCWSTR)buffer;
+				break;
 			}
 		};
 
@@ -387,9 +386,15 @@ void RunCommand(Measure* measure)
 
 			if (!measure->outputFile.empty())
 			{
+				std::wstring encoding = L"w+";
+				switch (type)
+				{
+				case OUTPUTTYPE_UTF8: { encoding.append(L", ccs=UTF-8"); break; }
+				case OUTPUTTYPE_UTF16: { encoding.append(L", ccs=UTF-16LE"); break; }
+				}
+
 				FILE* file;
-				if (_wfopen_s(&file, measure->outputFile.c_str(),
-					isUnicode ? L"w+, ccs=UTF-16LE" : L"w+") == 0)
+				if (_wfopen_s(&file, measure->outputFile.c_str(), encoding.c_str()) == 0)
 				{
 					fputws(result.c_str(), file);
 				}

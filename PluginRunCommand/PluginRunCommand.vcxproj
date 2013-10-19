@@ -23,10 +23,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PluginRunCommand.cpp" />
+    <ClCompile Include="StringUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="PluginRunCommand.h" />
     <ClInclude Include="Stdafx.h" />
+    <ClInclude Include="StringUtil.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4ABFBA48-C1DF-44B5-992F-3CFAEDE48974}</ProjectGuid>
