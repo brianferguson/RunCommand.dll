@@ -250,15 +250,36 @@ void RunCommand(Measure* measure)
 		DuplicateHandle(hProc, loadHandles[0], hProc, &read, 0, FALSE, DUPLICATE_SAME_ACCESS) &&
 		DuplicateHandle(hProc, loadHandles[2], hProc, &write, 0, FALSE, DUPLICATE_SAME_ACCESS))
 	{
-		CloseHandle(loadHandles[0]);
-		loadHandles[0] = INVALID_HANDLE_VALUE;
-		CloseHandle(loadHandles[2]);
-		loadHandles[2] = INVALID_HANDLE_VALUE;
-		
-		PROCESS_INFORMATION pi;
-		STARTUPINFO si;
+		// 
+		BYTE buffer[MAX_LINE_LENGTH];
+		DWORD bytesRead = 0;
+		DWORD totalBytes = 0;
+		DWORD bytesLeft = 0;
+		DWORD exit = 0;
+			
+		int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
+		unicodeMask ^= IS_TEXT_UNICODE_CONTROLS | IS_TEXT_UNICODE_REVERSE_CONTROLS;	// remove controls mask
 
+		auto SetResult = [&](BYTE* buffer)
+		{
+			if (type == OUTPUTTYPE_UNICODE || (type == OUTPUTTYPE_AUTO &&
+				IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
+			{
+				result += (WCHAR*)buffer;
+				isUnicode = true;
+			}
+			else
+			{
+				result += Widen((CHAR*)buffer);
+				isUnicode = false;
+			}
+		};
+
+		// Process and Startup info
+		PROCESS_INFORMATION pi;
 		SecureZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
+
+		STARTUPINFO si;
 		SecureZeroMemory(&si, sizeof(STARTUPINFO));
 		si.cb = sizeof(STARTUPINFO);
 		si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
@@ -274,48 +295,12 @@ void RunCommand(Measure* measure)
 			DWORD written;
 			WriteFile(write, &command[0], MAX_LINE_LENGTH, &written, NULL);
 
-			// Close unnecessary handles
-			CloseHandle(pi.hThread);
-			for (int i = 0; i < sizeof(loadHandles)/sizeof(loadHandles[0]); ++i)
-			{
-				CloseHandle(loadHandles[i]);
-				loadHandles[i] = INVALID_HANDLE_VALUE;
-			}
-
-			BYTE buffer[MAX_LINE_LENGTH];
-			DWORD bytesRead = 0;
-			DWORD totalBytes = 0;
-			DWORD bytesLeft = 0;
-			DWORD exit = 0;
-			
-			int unicodeMask = IS_TEXT_UNICODE_UNICODE_MASK | IS_TEXT_UNICODE_REVERSE_MASK;
-			unicodeMask ^= IS_TEXT_UNICODE_CONTROLS | IS_TEXT_UNICODE_REVERSE_CONTROLS;	// remove controls mask
-
-			auto SetResult = [&](BYTE* buffer)
-			{
-				if (type == OUTPUTTYPE_UNICODE || (type == OUTPUTTYPE_AUTO &&
-					IsTextUnicode(buffer, MAX_LINE_LENGTH, &unicodeMask)))
-				{
-					result += (WCHAR*)buffer;
-					isUnicode = true;
-				}
-				else
-				{
-					result += Widen((CHAR*)buffer);
-					isUnicode = false;
-				}
-			};
-
 			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
 			// Read output of program (if any)
 			for (;;)
 			{
-				SecureZeroMemory(buffer, sizeof(buffer));
-
-				GetExitCodeProcess(pi.hProcess, &exit);
-				if (exit != STILL_ACTIVE) break;
-
+				// Check if there is any data to to read
 				PeekNamedPipe(read, buffer, MAX_LINE_LENGTH, &bytesRead, &totalBytes, &bytesLeft);
 				if (bytesRead != 0)
 				{
@@ -349,8 +334,16 @@ void RunCommand(Measure* measure)
 					}
 					break;
 				}
+
+				// Check to see if the program is still running
+				GetExitCodeProcess(pi.hProcess, &exit);
+				if (exit != STILL_ACTIVE) break;
+
+				SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
 			}
 
+			// Close process handles
+			CloseHandle(pi.hThread);
 			CloseHandle(pi.hProcess);
 		}
 		else
@@ -363,7 +356,7 @@ void RunCommand(Measure* measure)
 		RmLog(LOG_ERROR, err_CreatePipe);	// Cannot create pipe
 	}
 
-	// Close handles (just in case process didn't start)
+	// Close handles
 	for (int i = 0; i < sizeof(loadHandles)/sizeof(loadHandles[0]); ++i)
 	{
 		if (loadHandles[i] != INVALID_HANDLE_VALUE)
