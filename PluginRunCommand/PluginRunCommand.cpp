@@ -129,18 +129,19 @@ PLUGIN_EXPORT double Update(void* data)
 PLUGIN_EXPORT LPCWSTR GetString(void* data)
 {
 	Measure* measure = (Measure*)data;
+	static std::wstring result = L"";
 
 	{
 		std::unique_lock<std::recursive_mutex> lock(measure->mutex, std::defer_lock);
 
 		if (lock.try_lock())
 		{
-			return measure->result.c_str();
+			result = measure->result.c_str();
 			lock.unlock();
 		}
 	}
 
-	return L"";
+	return result.c_str();
 }
 
 PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
