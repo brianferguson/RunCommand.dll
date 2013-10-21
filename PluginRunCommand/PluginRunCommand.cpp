@@ -377,7 +377,7 @@ void RunCommand(Measure* measure)
 	HMODULE module = nullptr;
 
 	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+		std::unique_lock<std::recursive_mutex> lock(measure->mutex);
 
 		if (measure->threadActive)
 		{
@@ -409,12 +409,14 @@ void RunCommand(Measure* measure)
 				}
 			}
 
+			measure->threadActive = false;
+
+			lock.unlock();
 			if (!measure->finishAction.empty())
 			{
 				RmExecute(measure->skin, measure->finishAction.c_str());
 			}
 
-			measure->threadActive = false;
 			return;
 		}
 	}
