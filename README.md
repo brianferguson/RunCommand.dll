@@ -3,7 +3,8 @@ RunCommand.dll
 
 RunCommand.dll is a plugin for [Rainmeter](http://www.rainmeter.net) that will run programs in a normal/hidden/minimized/maximized state. This plugin will also attempt to retrieve any output (stdout) from the program and set that to the "string" value of the plugin.
 
-######Note: This plugin requires Rainmeter version 2.5 (r1842) or higher. Make sure to set the "Minimum Rainmeter Version" to `2.5.0.1842` in the [Skin Packager](http://docs.rainmeter.net/manual/publishing-skins).
+#####Note:
+This plugin requires Rainmeter version 2.5 (r1842) or higher. Make sure to set the "Minimum Rainmeter Version" to `2.5.0.1842` in the [Skin Packager](http://docs.rainmeter.net/manual/publishing-skins).
 
 
 Contents
