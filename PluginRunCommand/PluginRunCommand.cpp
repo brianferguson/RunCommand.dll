@@ -412,7 +412,9 @@ void RunCommand(Measure* measure)
 
 			measure->threadActive = false;
 
+			// Unlock mutex here to prevent deadlock in FinishAction
 			lock.unlock();
+
 			if (!measure->finishAction.empty())
 			{
 				RmExecute(measure->skin, measure->finishAction.c_str());
