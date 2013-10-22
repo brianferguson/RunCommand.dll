@@ -41,7 +41,7 @@ Options
 * **Program** - The program to run. The default value is the `%ComSpec%` [environment variable](http://en.wikipedia.org/wiki/ComSpec).
 * **Parameter** - Any command-line parameters to send to the program (if any). If no `Program` is given, this option should represent the "command" you want to run from the command line (ie. `wmic os get lastbootuptime`).
 * **State** - Initial "state" of the program. Some programs explictly show themselves no matter what the OS tells them, so not all programs will respond to this option. Options include:
-  * **Hide** - Attempts to hide the program's window from being visible. Not all programs allow this (like Calc.exe). *This option is not recommended for GUI programs and/or programs that expect any form of input.* If the program hangs or expects input, you may have to explicitly kill the program in Windows Task Manager. This is the default value.
+  * **Hide** - Attempts to hide the program's window from being visible. Not all programs allow this (like Calc.exe). **This option is not recommended for GUI programs and/or programs that expect any form of input.** If the program hangs or expects input, you may have to explicitly kill the program in Windows Task Manager. This is the default value.
   * **Show** - Shows the program's window.
   * **Minimize** - Attempts to start the program minimized.
   * **Maximize** - Attempts to start the program maximized.
@@ -60,15 +60,9 @@ Because Rainmeter strips any quotes from the start *and* end of an option (if bo
 Commands
 -
 
-* **Run** - Runs the program.
-
-Example: `!CommandMeasure MeasureName Run`
-* **Close** - Closes the program properly - meaning the program may prompt the user to close. Some programs can cancel the closing of the program, in which the plugin will still gather any output.
-
-Example: `!CommandMeasure MeasureName Close`
-* **Kill** - Terminates the program without notice. This command should be used if the program was started in the hidden state. ie. `State=Hide`
-
-Example: '!CommandMeasure MeasureName Kill`
+* **Run** - Runs the program.  **Example:** `!CommandMeasure MeasureName Run`
+* **Close** - Closes the program properly - meaning the program may prompt the user to close. Some programs can cancel the closing of the program, in which the plugin will still gather any output.  **Example:** `!CommandMeasure MeasureName Close`
+* **Kill** - Terminates the program without notice. This command should be used if the program was started in the hidden state. ie. `State=Hide`  **Example:** `!CommandMeasure MeasureName Kill`
 
 Changes
 -
