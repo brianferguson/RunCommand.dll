@@ -60,9 +60,12 @@ Because Rainmeter strips any quotes from the start *and* end of an option (if bo
 Commands
 -
 
-* **Run** - Runs the program. Example: `!CommandMeasure MeasureName Run`
-* **Close** - Closes the program properly - meaning the program may prompt the user to close. Some programs can cancel the closing of the program, in which the plugin will still gather any output. Example: `!CommandMeasure MeasureName Close`
-* **Kill** - Terminates the program without notice. This command should be used if the program was started in the hidden state. ie. `State=Hide`  Example: '!CommandMeasure MeasureName Kill'
+* **Run** - Runs the program.
+Example: `!CommandMeasure MeasureName Run`
+* **Close** - Closes the program properly - meaning the program may prompt the user to close. Some programs can cancel the closing of the program, in which the plugin will still gather any output.
+Example: `!CommandMeasure MeasureName Close`
+* **Kill** - Terminates the program without notice. This command should be used if the program was started in the hidden state. ie. `State=Hide`
+Example: '!CommandMeasure MeasureName Kill`
 
 Changes
 -
