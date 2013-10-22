@@ -22,10 +22,11 @@
 
 const WCHAR* err_UnknownCmd = L"RunCommand.dll: Error (100) Unknown command";
 const WCHAR* err_CmdRunning = L"RunCommand.dll: Error (101) Command still running";
-const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (102) Cannot create pipe";	// Rare!
-const WCHAR* err_Process    = L"RunCommand.dll: Error (103) Cannot start process";
-const WCHAR* err_Terminate  = L"RunCommand.dll: Error (104) Cannot terminate process";	// Rare!
-const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (105) Cannot save file";
+const WCHAR* err_NotRunning = L"RunCommand.dll: Error (102) Command not running";
+const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (103) Cannot create pipe";	// Rare!
+const WCHAR* err_Process    = L"RunCommand.dll: Error (104) Cannot start process";
+const WCHAR* err_Terminate  = L"RunCommand.dll: Error (105) Cannot terminate process";	// Rare!
+const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (106) Cannot save file";
 
 void RunCommand(Measure* measure);
 BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, DWORD dwTimeout);
@@ -163,6 +164,21 @@ PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 			RmLog(LOG_ERROR, err_CmdRunning);	// Command still running
 		}
 	}
+	else if (_wcsicmp(args, L"CLOSE") == 0)
+	{
+		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
+		{
+			if (!TerminateApp(measure->hProc, measure->dwPID, 1000))
+			{
+				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+			}
+		}
+		else
+		{
+			RmLog(LOG_ERROR, err_NotRunning);	// Command not running
+		}
+	}
 	else
 	{
 		RmLog(LOG_NOTICE, err_UnknownCmd);	// Unknown command
@@ -291,6 +307,14 @@ void RunCommand(Measure* measure)
 		// Start process
 		if (CreateProcess(nullptr, &command[0], NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, &folder[0], &si, &pi))
 		{
+			// Store values inside measure for the "Close" command
+			{
+				std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+
+				measure->hProc = pi.hProcess;
+				measure->dwPID = pi.dwProcessId;
+			}
+
 			// Send command
 			DWORD written;
 			WriteFile(write, &command[0], MAX_LINE_LENGTH, &written, NULL);
@@ -345,6 +369,14 @@ void RunCommand(Measure* measure)
 			// Close process handles
 			CloseHandle(pi.hThread);
 			CloseHandle(pi.hProcess);
+
+			// Update values in case the "Close" command is called
+			{
+				std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+
+				measure->hProc = INVALID_HANDLE_VALUE;
+				measure->dwPID = 0;
+			}
 		}
 		else
 		{

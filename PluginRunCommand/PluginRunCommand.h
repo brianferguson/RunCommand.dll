@@ -47,6 +47,10 @@ struct Measure
 	void* skin;
 	HWND hwnd;
 
+	// Process info
+	HANDLE hProc;
+	DWORD dwPID;
+
 	Measure() :
 		program(),
 		parameter(),
@@ -60,7 +64,9 @@ struct Measure
 		mutex(),
 		threadActive(false),
 		skin(),
-		hwnd()
+		hwnd(),
+		hProc(INVALID_HANDLE_VALUE),
+		dwPID(0)
 		{ }
 };
 
