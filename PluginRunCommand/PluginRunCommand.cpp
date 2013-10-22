@@ -29,8 +29,8 @@ const WCHAR* err_Terminate  = L"RunCommand.dll: Error (105) Cannot terminate pro
 const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (106) Cannot save file";
 
 void RunCommand(Measure* measure);
-BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, DWORD dwTimeout);
-BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam);
+bool WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force);
+bool CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam);
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -169,7 +169,22 @@ PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
 		{
-			if (!TerminateApp(measure->hProc, measure->dwPID, 1000))
+			if (!TerminateApp(measure->hProc, measure->dwPID, false))
+			{
+				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+			}
+		}
+		else
+		{
+			RmLog(LOG_ERROR, err_NotRunning);	// Command not running
+		}
+	}
+	else if (_wcsicmp(args, L"KILL") == 0)
+	{
+		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
+		{
+			if (!TerminateApp(measure->hProc, measure->dwPID, true))
 			{
 				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 			}
@@ -352,7 +367,7 @@ void RunCommand(Measure* measure)
 					(timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
-					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (DWORD)timeout))
+					if (!TerminateApp(pi.hProcess, pi.dwProcessId, true))
 					{
 						RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 					}
@@ -468,29 +483,26 @@ void RunCommand(Measure* measure)
 	}
 }
 
-// Terminate "cleanly" per KB178893
-BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, DWORD dwTimeout)
+// Closes or kills a program
+bool WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force)
 {
-	BOOL ret = FALSE;
+	bool result = false;
 
-	EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) dwPID);
-
-	if (WaitForSingleObject(hProc, dwTimeout) != WAIT_OBJECT_0)
+	if (force)
 	{
-		ret = TerminateProcess(hProc, 0);
+		result = TerminateProcess(hProc, 0);
 	}
 	else
 	{
-		ret = TRUE;
+		result = EnumWindows((WNDENUMPROC)TerminateAppEnum, (LPARAM) dwPID);
 	}
 
-	return ret;
+	return result;
 }
 
-BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
+bool CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
 {
 	DWORD dwID;
-
 	GetWindowThreadProcessId(hwnd, &dwID);
 
 	if (dwID == (DWORD)lParam)
@@ -498,5 +510,5 @@ BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
 		PostMessage(hwnd, WM_CLOSE, 0, 0);
 	}
 
-	return TRUE;
+	return true;
 }
