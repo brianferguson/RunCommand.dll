@@ -1,4 +1,4 @@
-RunCommand.dll
+RunCommand.dll (Beta)
 =============
 
 RunCommand.dll is a plugin for [Rainmeter](http://www.rainmeter.net) that will run programs in a normal/hidden/minimized/maximized state. This plugin will also attempt to retrieve any output (stdout) from the program and set that to the "string" value of the plugin.
@@ -52,7 +52,7 @@ Options
   * **UTF8** - Output is expected to be UTF-8 encoded. The `OutputFile` will also be UTF-8 encoded.
   * **UTF16** - Output is expected to be UTF-16LE encoded. The `OutputFile` will also be UTF-16LE encoded.
 * **StartInFolder** - Starts the program in this folder.
-* **Timeout** - In milliseconds. If positive, will close the program after the given time. The default is `-1`. Even if the close is cancelled, the program will still close after another "timeout" value. For example: If you open notepad with a timeout of 5 seconds, and make a change within those 5 seconds and cancel when asked to save the file...notepad will still close after another 5 seconds.
+* **Timeout** - In milliseconds. If positive, will "kill" the program (without notice) after the given time. The default is `-1`, which means no timeout.
 
 #####Note:
 Because Rainmeter strips any quotes from the start *and* end of an option (if both exist), it is important to double quote the `Program` and `Parameter` options (if needed).  `Program=""C:\Program Files\Some Program\Something with a space.exe""`
@@ -60,13 +60,16 @@ Because Rainmeter strips any quotes from the start *and* end of an option (if bo
 Commands
 -
 
-* **Run** - Runs the program.
+* **Run** - Runs the program. Example: `!CommandMeasure MeasureName Run`
+* **Close** - Closes the program properly - meaning the program may prompt the user to close. Some programs can cancel the closing of the program, in which the plugin will still gather any output. Example: `!CommandMeasure MeasureName Close`
+* **Kill** - Terminates the program without notice. This command should be used if the program was started in the hidden state. ie. `State=Hide`  Example: '!CommandMeasure MeasureName Kill'
 
 Changes
 -
 Here is a list of the major changes to the plugin.
 
 #####Version:
+* **0.0.1.2** - Added the `Close` and `Kill` commands.
 * **0.0.1.1** - FinishAction should not deadlock anymore.
 * **0.0.1.0** - Major change to OutputType. Auto detection is removed.
 * **0.0.0.3** - Fixed Unicode detection. Added OutputType. Hidden program now close if the skin and/or Rainmeter is closed.
