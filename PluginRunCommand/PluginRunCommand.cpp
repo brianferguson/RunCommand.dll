@@ -29,8 +29,8 @@ const WCHAR* err_Terminate  = L"RunCommand.dll: Error (105) Cannot terminate pro
 const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (106) Cannot save file";
 
 void RunCommand(Measure* measure);
-bool WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force);
-bool CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam);
+BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force);
+BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam);
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -225,32 +225,20 @@ PLUGIN_EXPORT void Finalize(void* data)
 
 void RunCommand(Measure* measure)
 {
-	WORD showWindow = 0;
-	std::wstring command;
-	std::wstring folder;
-	int timeout = -1;
-	std::wstring result;
-	OutputType type;
-	HWND hwnd;
+	std::unique_lock<std::recursive_mutex> lock(measure->mutex);
+	
+	std::wstring command = measure->program + L" " + measure->parameter;
+	std::wstring folder = measure->folder;
+	std::wstring result = L"";
+	WORD state = measure->state;
+	int timeout = measure->timeout;
+	OutputType type = measure->outputType;
+	HWND hwnd = measure->hwnd;
 
-	// Grab values from the measure
-	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+	lock.unlock();
 
-		showWindow = measure->state;
-		folder = measure->folder;
-		timeout = measure->timeout;
-
-		command = measure->program;
-		command += L" ";
-		command += measure->parameter;
-
-		type = measure->outputType;
-		hwnd = measure->hwnd;
-	}
-
-	HANDLE read = nullptr;
-	HANDLE write = nullptr;
+	HANDLE read = INVALID_HANDLE_VALUE;
+	HANDLE write = INVALID_HANDLE_VALUE;
 
 /*	Instead of trying to keep track of the following handles,
 	use an array to make cleanup easier.
@@ -262,7 +250,7 @@ void RunCommand(Measure* measure)
 	HANDLE hErrorWrite;		4
 */
 	HANDLE loadHandles[5];
-	for (int i = 0; i < sizeof(loadHandles)/sizeof(loadHandles[0]); ++i)
+	for (int i = 0; i < sizeof(loadHandles) / sizeof(loadHandles[0]); ++i)
 	{
 		loadHandles[i] = INVALID_HANDLE_VALUE;
 	}
@@ -272,7 +260,7 @@ void RunCommand(Measure* measure)
 	sa.bInheritHandle = TRUE;
 	sa.lpSecurityDescriptor = NULL;
 
-	HANDLE hProc = GetCurrentProcess();	// Do not close this handle!
+	HANDLE hProc = GetCurrentProcess();
 
 	// Create pipe for stdin, stdout, stderr
 	if (CreatePipe(&loadHandles[0], &loadHandles[1], &sa, 0) &&
@@ -314,21 +302,19 @@ void RunCommand(Measure* measure)
 		SecureZeroMemory(&si, sizeof(STARTUPINFO));
 		si.cb = sizeof(STARTUPINFO);
 		si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-		si.wShowWindow = showWindow;
+		si.wShowWindow = state;
 		si.hStdOutput  = loadHandles[1];
 		si.hStdInput   = loadHandles[3];
 		si.hStdError   = loadHandles[4];
 
 		// Start process
-		if (CreateProcess(nullptr, &command[0], NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, &folder[0], &si, &pi))
+		if (CreateProcess(NULL, &command[0], NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, &folder[0], &si, &pi))
 		{
-			// Store values inside measure for the "Close" command
-			{
-				std::lock_guard<std::recursive_mutex> lock(measure->mutex);
-
+			// Store values inside measure for the "Close" or "Kill" command
+			lock.lock();
 				measure->hProc = pi.hProcess;
 				measure->dwPID = pi.dwProcessId;
-			}
+			lock.unlock();
 
 			// Send command
 			DWORD written;
@@ -363,7 +349,7 @@ void RunCommand(Measure* measure)
 				}
 
 				// Close hidden program if skin is closed or timeout is reached (if exists)
-				if ((showWindow == SW_HIDE && !IsWindow(hwnd)) ||
+				if ((state == SW_HIDE && !IsWindow(hwnd)) ||
 					(timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
@@ -385,13 +371,11 @@ void RunCommand(Measure* measure)
 			CloseHandle(pi.hThread);
 			CloseHandle(pi.hProcess);
 
-			// Update values in case the "Close" command is called
-			{
-				std::lock_guard<std::recursive_mutex> lock(measure->mutex);
-
+			// Update values in case the "Close" or "Kill" command is called
+			lock.lock();
 				measure->hProc = INVALID_HANDLE_VALUE;
 				measure->dwPID = 0;
-			}
+			lock.unlock();
 		}
 		else
 		{
@@ -404,7 +388,7 @@ void RunCommand(Measure* measure)
 	}
 
 	// Close handles
-	for (int i = 0; i < sizeof(loadHandles)/sizeof(loadHandles[0]); ++i)
+	for (int i = 0; i < sizeof(loadHandles) / sizeof(loadHandles[0]); ++i)
 	{
 		if (loadHandles[i] != INVALID_HANDLE_VALUE)
 		{
@@ -424,52 +408,51 @@ void RunCommand(Measure* measure)
 
 	HMODULE module = nullptr;
 
+	lock.lock();
+
+	if (measure->threadActive)
 	{
-		std::unique_lock<std::recursive_mutex> lock(measure->mutex);
+		measure->result = result;
+		measure->result.shrink_to_fit();
 
-		if (measure->threadActive)
+		if (!measure->outputFile.empty())
 		{
-			measure->result = result;
-			measure->result.shrink_to_fit();
-
-			if (!measure->outputFile.empty())
+			std::wstring encoding = L"w+";
+			switch (type)
 			{
-				std::wstring encoding = L"w+";
-				switch (type)
-				{
-				case OUTPUTTYPE_UTF8: { encoding.append(L", ccs=UTF-8"); break; }
-				case OUTPUTTYPE_UTF16: { encoding.append(L", ccs=UTF-16LE"); break; }
-				}
-
-				FILE* file;
-				if (_wfopen_s(&file, measure->outputFile.c_str(), encoding.c_str()) == 0)
-				{
-					fputws(result.c_str(), file);
-				}
-				else
-				{
-					RmLog(LOG_ERROR, err_SaveFile);	// Cannot save file
-				}
-
-				if (file)
-				{
-					fclose(file);
-				}
+			case OUTPUTTYPE_UTF8: { encoding.append(L", ccs=UTF-8"); break; }
+			case OUTPUTTYPE_UTF16: { encoding.append(L", ccs=UTF-16LE"); break; }
 			}
 
-			measure->threadActive = false;
-
-			// Unlock mutex here to prevent deadlock in FinishAction
-			lock.unlock();
-
-			if (!measure->finishAction.empty())
+			FILE* file;
+			if (_wfopen_s(&file, measure->outputFile.c_str(), encoding.c_str()) == 0)
 			{
-				RmExecute(measure->skin, measure->finishAction.c_str());
+				fputws(result.c_str(), file);
+			}
+			else
+			{
+				RmLog(LOG_ERROR, err_SaveFile);	// Cannot save file
 			}
 
-			return;
+			if (file)
+			{
+				fclose(file);
+			}
 		}
+
+		measure->threadActive = false;
+
+		lock.unlock();
+
+		if (!measure->finishAction.empty())
+		{
+			RmExecute(measure->skin, measure->finishAction.c_str());
+		}
+
+		return;
 	}
+
+	lock.unlock();
 
 	delete measure;
 
@@ -483,10 +466,9 @@ void RunCommand(Measure* measure)
 	}
 }
 
-// Closes or kills a program
-bool WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force)
+BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force)
 {
-	bool result = false;
+	BOOL result = FALSE;
 
 	if (force)
 	{
@@ -500,7 +482,7 @@ bool WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force)
 	return result;
 }
 
-bool CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
+BOOL CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
 {
 	DWORD dwID;
 	GetWindowThreadProcessId(hwnd, &dwID);
@@ -510,5 +492,5 @@ bool CALLBACK TerminateAppEnum(HWND hwnd, LPARAM lParam)
 		PostMessage(hwnd, WM_CLOSE, 0, 0);
 	}
 
-	return true;
+	return TRUE;
 }
