@@ -32,7 +32,7 @@ Here are some of the features of the RunCommand plugin:
 * If `State=Hide`, the program will quit if the skin is unloaded (or Rainmeter itself).
 
 #####Note:
-As of version 0.0.1.0 Beta, `OutputType` defaults to `UTF16`. Output auto detection has been removed.
+As of version 0.0.1.3 Beta, if the `Timeout` is reached, the program will terminate cleanly if possible (eg. like the `Close` command), else the program will be forcibly terminated (eg. like the `Kill` command).
 
 
 Options
@@ -52,7 +52,7 @@ Options
   * **UTF8** - Output is expected to be UTF-8 encoded. The `OutputFile` will also be UTF-8 encoded.
   * **UTF16** - Output is expected to be UTF-16LE encoded. The `OutputFile` will also be UTF-16LE encoded.
 * **StartInFolder** - Starts the program in this folder.
-* **Timeout** - In milliseconds. If positive, will "kill" the program (without notice) after the given time. The default is `-1`, which means no timeout.
+* **Timeout** - In milliseconds. If positive, will either "Close" or "Kill" the program (depending on the `State`) after the given time. The default is `-1`, which means no timeout. The `FinishAction` will run even if the program does not terminate (eg. if closing "Notepad", clicking "Cancel" when asked to save the document). It should be noted that this value is **independent** of the `Update` or `UpdateDivider` values of the skin.
 
 #####Note:
 Because Rainmeter strips any quotes from the start *and* end of an option (if both exist), it is important to double quote the `Program` and `Parameter` options (if needed).  `Program=""C:\Program Files\Some Program\Something with a space.exe""`
@@ -69,6 +69,7 @@ Changes
 Here is a list of the major changes to the plugin.
 
 #####Version:
+* **0.0.1.3** - Improved performance when waiting for the program to finish. Programs are terminated on skin refresh (or Rainmeter exit) regardless of `State`. Changed `Timeout` behavior.
 * **0.0.1.2** - Added the `Close` and `Kill` commands.
 * **0.0.1.1** - FinishAction should not deadlock anymore.
 * **0.0.1.0** - Major change to OutputType. Auto detection is removed.
