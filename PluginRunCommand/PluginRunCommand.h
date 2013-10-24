@@ -45,7 +45,6 @@ struct Measure
 	std::recursive_mutex mutex;
 	bool threadActive;
 	void* skin;
-	HWND hwnd;
 
 	// Process info
 	HANDLE hProc;
@@ -64,7 +63,6 @@ struct Measure
 		mutex(),
 		threadActive(false),
 		skin(),
-		hwnd(),
 		hProc(INVALID_HANDLE_VALUE),
 		dwPID(0)
 		{ }

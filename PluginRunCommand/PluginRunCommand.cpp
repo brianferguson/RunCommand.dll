@@ -54,7 +54,6 @@ PLUGIN_EXPORT void Initialize(void** data, void* rm)
 	*data = measure;
 
 	measure->skin = RmGetSkin(rm);
-	measure->hwnd = RmGetSkinWindow(rm);
 }
 
 PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
@@ -208,6 +207,11 @@ PLUGIN_EXPORT void Finalize(void* data)
 		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (measure->threadActive)
 		{
+			if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE) ? true : false))
+			{
+				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+			}
+
 			// Increment ref count of this module so that it will not be
 			// unloaded prior to thread completion.
 			DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
@@ -232,11 +236,9 @@ void RunCommand(Measure* measure)
 	WORD state = measure->state;
 	int timeout = measure->timeout;
 	OutputType type = measure->outputType;
-	HWND hwnd = measure->hwnd;
 
 	lock.unlock();
 
-	DWORD wait = (timeout < 0) ? 50 : (DWORD)(0.50f * timeout);
 	std::wstring result = L"";
 
 	HANDLE read = INVALID_HANDLE_VALUE;
@@ -328,7 +330,7 @@ void RunCommand(Measure* measure)
 			for (;;)
 			{
 				// Wait for a signal from the process (or timeout)
-				WaitForSingleObject(pi.hThread, wait);
+				WaitForSingleObject(pi.hThread, 10);
 
 				// Check if there is any data to to read
 				PeekNamedPipe(read, buffer, MAX_LINE_LENGTH, &bytesRead, &totalBytes, &bytesLeft);
@@ -353,12 +355,11 @@ void RunCommand(Measure* measure)
 					}
 				}
 
-				// Close hidden program if skin is closed or timeout is reached (if exists)
-				if ((state == SW_HIDE && !IsWindow(hwnd)) ||
-					(timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
+				// Terminate the program
+				if ((timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
-					if (!TerminateApp(pi.hProcess, pi.dwProcessId, true))
+					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (state == SW_HIDE) ? true : false))
 					{
 						RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 					}
