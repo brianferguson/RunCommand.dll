@@ -229,13 +229,15 @@ void RunCommand(Measure* measure)
 	
 	std::wstring command = measure->program + L" " + measure->parameter;
 	std::wstring folder = measure->folder;
-	std::wstring result = L"";
 	WORD state = measure->state;
 	int timeout = measure->timeout;
 	OutputType type = measure->outputType;
 	HWND hwnd = measure->hwnd;
 
 	lock.unlock();
+
+	DWORD wait = (timeout < 0) ? 50 : (DWORD)(0.50f * timeout);
+	std::wstring result = L"";
 
 	HANDLE read = INVALID_HANDLE_VALUE;
 	HANDLE write = INVALID_HANDLE_VALUE;
@@ -325,6 +327,9 @@ void RunCommand(Measure* measure)
 			// Read output of program (if any)
 			for (;;)
 			{
+				// Wait for a signal from the process (or timeout)
+				WaitForSingleObject(pi.hThread, wait);
+
 				// Check if there is any data to to read
 				PeekNamedPipe(read, buffer, MAX_LINE_LENGTH, &bytesRead, &totalBytes, &bytesLeft);
 				if (bytesRead != 0)
