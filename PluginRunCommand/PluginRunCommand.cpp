@@ -273,7 +273,7 @@ void RunCommand(Measure* measure)
 		DuplicateHandle(hProc, loadHandles[0], hProc, &read, 0, FALSE, DUPLICATE_SAME_ACCESS) &&
 		DuplicateHandle(hProc, loadHandles[2], hProc, &write, 0, FALSE, DUPLICATE_SAME_ACCESS))
 	{
-		BYTE buffer[MAX_LINE_LENGTH];
+		BYTE buffer[MAX_LINE_LENGTH + 1];
 		DWORD bytesRead = 0;
 		DWORD totalBytes = 0;
 		DWORD bytesLeft = 0;
@@ -344,6 +344,7 @@ void RunCommand(Measure* measure)
 							buffer[bytesRead] = '\0';
 
 							SetResult(buffer);
+							SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
 						}
 					}
 					else
@@ -352,6 +353,7 @@ void RunCommand(Measure* measure)
 						buffer[bytesRead] = '\0';
 
 						SetResult(buffer);
+						SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
 					}
 				}
 
@@ -369,8 +371,6 @@ void RunCommand(Measure* measure)
 				// Check to see if the program is still running
 				GetExitCodeProcess(pi.hProcess, &exit);
 				if (exit != STILL_ACTIVE) break;
-
-				SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
 			}
 
 			// Close process handles
