@@ -63,7 +63,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 
 	measure->parameter = RmReadString(rm, L"Parameter", L"");
-	measure->finishAction = RmReadString(rm, L"FinishAction", L"", false);
+	measure->finishAction = RmReadString(rm, L"FinishAction", L"", FALSE);
 	measure->outputFile = RmReadPath(rm, L"OutputFile", L"");
 	measure->folder = RmReadPath(rm, L"StartInFolder", L" ");	// Space is intentional!
 	measure->timeout = RmReadInt(rm, L"Timeout", -1);
@@ -163,27 +163,12 @@ PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 			RmLog(LOG_ERROR, err_CmdRunning);	// Command still running
 		}
 	}
-	else if (_wcsicmp(args, L"CLOSE") == 0)
+	else if (_wcsicmp(args, L"CLOSE") == 0 || _wcsicmp(args, L"KILL") == 0)
 	{
 		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
 		{
-			if (!TerminateApp(measure->hProc, measure->dwPID, false))
-			{
-				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
-			}
-		}
-		else
-		{
-			RmLog(LOG_ERROR, err_NotRunning);	// Command not running
-		}
-	}
-	else if (_wcsicmp(args, L"KILL") == 0)
-	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
-		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
-		{
-			if (!TerminateApp(measure->hProc, measure->dwPID, true))
+			if (!TerminateApp(measure->hProc, measure->dwPID, (_wcsicmp(args, L"KILL") == 0)))
 			{
 				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 			}
@@ -207,7 +192,7 @@ PLUGIN_EXPORT void Finalize(void* data)
 		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (measure->threadActive)
 		{
-			if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE) ? true : false))
+			if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE)))
 			{
 				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 			}
@@ -279,25 +264,6 @@ void RunCommand(Measure* measure)
 		DWORD bytesLeft = 0;
 		DWORD exit = 0;
 
-		auto SetResult = [&](BYTE* buffer)
-		{
-			switch (type)
-			{
-			case OUTPUTTYPE_ANSI:
-				result += StringUtil::Widen((LPCSTR)buffer);
-				break;
-
-			case OUTPUTTYPE_UTF8:
-				result += StringUtil::WidenUTF8((LPCSTR)buffer);
-				break;
-
-			default:
-			case OUTPUTTYPE_UTF16:
-				result += (LPCWSTR)buffer;
-				break;
-			}
-		};
-
 		// Process and Startup info
 		PROCESS_INFORMATION pi;
 		SecureZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
@@ -327,10 +293,34 @@ void RunCommand(Measure* measure)
 			std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
 			// Read output of program (if any)
-			for (;;)
+			while(true)
 			{
+				auto ReadFileAndSetResult = [&]() -> void
+				{
+					ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
+					buffer[bytesRead] = '\0';
+
+					switch (type)
+					{
+					case OUTPUTTYPE_ANSI:
+						result += StringUtil::Widen((LPCSTR)buffer);
+						break;
+
+					case OUTPUTTYPE_UTF8:
+						result += StringUtil::WidenUTF8((LPCSTR)buffer);
+						break;
+
+					default:
+					case OUTPUTTYPE_UTF16:
+						result += (LPCWSTR)buffer;
+						break;
+					}
+
+					SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
+				};
+
 				// Wait for a signal from the process (or timeout)
-				WaitForSingleObject(pi.hThread, 10);
+				WaitForSingleObject(pi.hThread, 1);
 
 				// Check if there is any data to to read
 				PeekNamedPipe(read, buffer, MAX_LINE_LENGTH, &bytesRead, &totalBytes, &bytesLeft);
@@ -340,28 +330,20 @@ void RunCommand(Measure* measure)
 					{
 						while (bytesRead >= MAX_LINE_LENGTH)
 						{
-							ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
-							buffer[bytesRead] = '\0';
-
-							SetResult(buffer);
-							SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
+							ReadFileAndSetResult();
 						}
 					}
 					else
 					{
-						ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
-						buffer[bytesRead] = '\0';
-
-						SetResult(buffer);
-						SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
+						ReadFileAndSetResult();
 					}
 				}
 
-				// Terminate the program
+				// If a timeout is defined, attempt to terminate program and detach it from the plugin
 				if ((timeout >= 0 && std::chrono::duration_cast<std::chrono::milliseconds>
 					(std::chrono::system_clock::now() - start).count() > timeout))
 				{
-					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (state == SW_HIDE) ? true : false))
+					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (state == SW_HIDE)))
 					{
 						RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
 					}
