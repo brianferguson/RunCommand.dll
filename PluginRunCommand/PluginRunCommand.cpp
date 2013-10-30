@@ -116,25 +116,17 @@ PLUGIN_EXPORT double Update(void* data)
 	Measure* measure = (Measure*)data;
 
 	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+
 	return measure->value;
 }
 
 PLUGIN_EXPORT LPCWSTR GetString(void* data)
 {
 	Measure* measure = (Measure*)data;
-	static std::wstring result = L"";
 
-	{
-		std::unique_lock<std::recursive_mutex> lock(measure->mutex, std::defer_lock);
+	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 
-		if (lock.try_lock())
-		{
-			result = measure->result.c_str();
-			lock.unlock();
-		}
-	}
-
-	return result.c_str();
+	return measure->result.c_str();
 }
 
 PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
@@ -186,26 +178,25 @@ PLUGIN_EXPORT void Finalize(void* data)
 {
 	Measure* measure = (Measure*)data;
 
+	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+
+	if (measure->threadActive)
 	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
-		if (measure->threadActive)
+		if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE)))
 		{
-			if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE)))
-			{
-				measure->value = 105.0f;
-				RmLogF(measure->rm, LOG_ERROR, err_Terminate, measure->program.c_str());	// Could not terminate process (very rare!)
-			}
-
-			// Increment ref count of this module so that it will not be
-			// unloaded prior to thread completion.
-			DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
-			HMODULE module;
-			GetModuleHandleEx(flags, (LPCWSTR)DllMain, &module);
-
-			// Tell the thread to perform any cleanup
-			measure->threadActive = false;
-			return;
+			measure->value = 105.0f;
+			RmLogF(measure->rm, LOG_ERROR, err_Terminate, measure->program.c_str());	// Could not terminate process (very rare!)
 		}
+
+		// Increment ref count of this module so that it will not be
+		// unloaded prior to thread completion.
+		DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
+		HMODULE module;
+		GetModuleHandleEx(flags, (LPCWSTR)DllMain, &module);
+
+		// Tell the thread to perform any cleanup
+		measure->threadActive = false;
+		return;
 	}
 
 	delete measure;
@@ -264,7 +255,6 @@ void RunCommand(Measure* measure)
 		DWORD bytesLeft = 0;
 		DWORD exit = 0;
 
-		// Process and Startup info
 		PROCESS_INFORMATION pi;
 		SecureZeroMemory(&pi, sizeof(PROCESS_INFORMATION));
 
@@ -277,7 +267,6 @@ void RunCommand(Measure* measure)
 		si.hStdInput   = loadHandles[3];
 		si.hStdError   = loadHandles[4];
 
-		// Start process
 		if (CreateProcess(NULL, &command[0], NULL, NULL, TRUE, CREATE_NEW_PROCESS_GROUP, NULL, &folder[0], &si, &pi))
 		{
 			// Store values inside measure for the "Close" or "Kill" command
@@ -299,6 +288,8 @@ void RunCommand(Measure* measure)
 				{
 					ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
 
+					// Triple "null" the buffer in case an odd number bytes is
+					// converted to a multi-byte string.
 					buffer[bytesRead] = '\0';
 					buffer[bytesRead + 1] = '\0';
 					buffer[bytesRead + 2] = '\0';
@@ -322,7 +313,8 @@ void RunCommand(Measure* measure)
 					SecureZeroMemory(buffer, sizeof(buffer));	// clear the buffer
 				};
 
-				// Wait for a signal from the process (or timeout)
+				// Wait for a signal from the process (or timeout).
+				// This reduced CPU usage significantly.
 				WaitForSingleObject(pi.hThread, 1);
 
 				// Check if there is any data to to read
