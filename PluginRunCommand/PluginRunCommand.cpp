@@ -20,7 +20,7 @@
 
 #define MAX_LINE_LENGTH	4096
 
-const WCHAR* err_UnknownCmd = L"Error 100: Unknown program: %s";
+const WCHAR* err_UnknownCmd = L"Error 100: Unknown command: %s";
 const WCHAR* err_CmdRunning = L"Error 101: Program still running: %s";
 const WCHAR* err_NotRunning = L"Error 102: Program not running: %s";
 const WCHAR* err_Process    = L"Error 103: Cannot start program: %s";
@@ -170,7 +170,7 @@ PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 	else
 	{
 		measure->value = 100.0f;
-		RmLogF(measure->rm, LOG_NOTICE, err_UnknownCmd, measure->program.c_str());	// Unknown command
+		RmLogF(measure->rm, LOG_NOTICE, err_UnknownCmd, args);	// Unknown command
 	}
 }
 
