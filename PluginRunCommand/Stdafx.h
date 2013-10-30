@@ -25,6 +25,7 @@
 #include <thread>
 #include <mutex>
 #include <chrono>
+#include <algorithm>
 
 // Rainmeter API
 #include "../RainmeterAPI/RainmeterAPI.h"

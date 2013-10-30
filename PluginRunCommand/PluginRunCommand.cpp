@@ -395,11 +395,7 @@ void RunCommand(Measure* measure)
 	CloseHandle(read);
 
 	// Remove any carriage returns
-	size_t pos = 0;
-	while ((pos = result.find(L"\r", pos)) != std::wstring::npos)
-	{
-		result.erase(pos++, 1);
-	}
+	result.erase(std::remove(result.begin(), result.end(), L'\r'), result.end());
 
 	HMODULE module = nullptr;
 
