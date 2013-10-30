@@ -258,7 +258,7 @@ void RunCommand(Measure* measure)
 		DuplicateHandle(hProc, loadHandles[0], hProc, &read, 0, FALSE, DUPLICATE_SAME_ACCESS) &&
 		DuplicateHandle(hProc, loadHandles[2], hProc, &write, 0, FALSE, DUPLICATE_SAME_ACCESS))
 	{
-		BYTE buffer[MAX_LINE_LENGTH + 1];
+		BYTE buffer[MAX_LINE_LENGTH + 3];
 		DWORD bytesRead = 0;
 		DWORD totalBytes = 0;
 		DWORD bytesLeft = 0;
@@ -298,7 +298,10 @@ void RunCommand(Measure* measure)
 				auto ReadFileAndSetResult = [&]() -> void
 				{
 					ReadFile(read, buffer, MAX_LINE_LENGTH, &bytesRead, NULL);
+
 					buffer[bytesRead] = '\0';
+					buffer[bytesRead + 1] = '\0';
+					buffer[bytesRead + 2] = '\0';
 
 					switch (type)
 					{
