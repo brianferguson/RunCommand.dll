@@ -80,13 +80,13 @@ Error Codes
 -
 Here is a list of possible error codes:
 
-* **100** - Unknown command. This happens when an invalid [command](#Commands) was sent to the plugin.
-* **101** - Program still running. This happens when trying to `Run` again before it has finished running.
+* **100** - Unknown command. This happens when an invalid [command](#commands) was sent to the plugin.
+* **101** - Program still running. This happens when trying to `Run` the program again before it has finished running.
 * **102** - Program not running. This happens when trying to `Close` or `Kill` a program that is not running.
-* **103** - Cannot start program. This happens when the program is invalid. Usually a wrong path or typo in the `Program` option is the cause.
-* **104** - Cannot save file. This happens when an error happens saving the file. This could happen if writing to a locked location or file. The string value of the plugin will still contain any output of the program.
+* **103** - Cannot start program. This happens when the `Program` option is invalid. Usually a wrong path or typo in the `Program` option is the cause.
+* **104** - Cannot save file. This happens when there is an error saving the file. This could happen if writing to a locked location or file. The string value of the plugin will still contain any output of the program.
 * **105** - Cannot terminate process. There was an error when attempting to close or kill the program. This should rarely happen. If so, it might be necessary to open the Windows Task Manager and manually close the program.
-* **106** - Cannot create pipe. This happens when the plugin cannot create a pipe to the program trying to run. The program will not run if this error happens. This error should rarely happen.
+* **106** - Cannot create pipe. This happens when the plugin cannot create a [pipe](http://en.wikipedia.org/wiki/Anonymous_pipe#Microsoft_Windows) to the program trying to run. The program will not run if this error happens. This error should rarely happen.
 
 #####Note:
 It should be noted that these codes are for the plugin **only** and have nothing to do with any error encountered with the program itself.
