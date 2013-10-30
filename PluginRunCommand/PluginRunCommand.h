@@ -41,10 +41,12 @@ struct Measure
 	OutputType outputType;
 
 	// Internal values
+	double value;
 	std::wstring result;
 	std::recursive_mutex mutex;
 	bool threadActive;
 	void* skin;
+	void* rm;
 
 	// Process info
 	HANDLE hProc;
@@ -59,10 +61,12 @@ struct Measure
 		state(0),
 		timeout(-1),
 		outputType(OUTPUTTYPE_UTF16),
+		value(0.0f),
 		result(),
 		mutex(),
 		threadActive(false),
 		skin(),
+		rm(),
 		hProc(INVALID_HANDLE_VALUE),
 		dwPID(0)
 		{ }

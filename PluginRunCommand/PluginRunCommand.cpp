@@ -20,13 +20,14 @@
 
 #define MAX_LINE_LENGTH	4096
 
-const WCHAR* err_UnknownCmd = L"RunCommand.dll: Error (100) Unknown command";
-const WCHAR* err_CmdRunning = L"RunCommand.dll: Error (101) Command still running";
-const WCHAR* err_NotRunning = L"RunCommand.dll: Error (102) Command not running";
-const WCHAR* err_CreatePipe = L"RunCommand.dll: Error (103) Cannot create pipe";	// Rare!
-const WCHAR* err_Process    = L"RunCommand.dll: Error (104) Cannot start process";
-const WCHAR* err_Terminate  = L"RunCommand.dll: Error (105) Cannot terminate process";	// Rare!
-const WCHAR* err_SaveFile   = L"RunCommand.dll: Error (106) Cannot save file";
+const WCHAR* err_UnknownCmd = L"Error 100: Unknown program: %s";
+const WCHAR* err_CmdRunning = L"Error 101: Program still running: %s";
+const WCHAR* err_NotRunning = L"Error 102: Program not running: %s";
+const WCHAR* err_Process    = L"Error 103: Cannot start program: %s";
+const WCHAR* err_SaveFile   = L"Error 104: Cannot save file: %s";
+const WCHAR* err_Terminate  = L"Error 105: Cannot terminate process: %s";	// Rare!
+const WCHAR* err_CreatePipe = L"Error 106: Cannot create pipe";				// Rare!
+
 
 void RunCommand(Measure* measure);
 BOOL WINAPI TerminateApp(HANDLE& hProc, DWORD& dwPID, const bool& force);
@@ -54,6 +55,7 @@ PLUGIN_EXPORT void Initialize(void** data, void* rm)
 	*data = measure;
 
 	measure->skin = RmGetSkin(rm);
+	measure->rm = rm;
 }
 
 PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
@@ -113,17 +115,8 @@ PLUGIN_EXPORT double Update(void* data)
 {
 	Measure* measure = (Measure*)data;
 
-	double value = 0.0f;
-
-	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
-		if (!measure->result.empty())
-		{
-			value = _wtoi(measure->result.c_str());
-		}
-	}
-
-	return value;
+	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+	return measure->value;
 }
 
 PLUGIN_EXPORT LPCWSTR GetString(void* data)
@@ -148,39 +141,44 @@ PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 {
 	Measure* measure = (Measure*)data;
 
+	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+
 	if (_wcsicmp(args, L"RUN") == 0)
 	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (!measure->threadActive && !measure->program.empty())
 		{
 			std::thread thread(RunCommand, measure);
 			thread.detach();
 
+			measure->value = 0.0f;
 			measure->threadActive = true;
 		}
 		else
 		{
-			RmLog(LOG_ERROR, err_CmdRunning);	// Command still running
+			measure->value = 101.0f;
+			RmLogF(measure->rm, LOG_NOTICE, err_CmdRunning, measure->program.c_str());	// Command still running
 		}
 	}
 	else if (_wcsicmp(args, L"CLOSE") == 0 || _wcsicmp(args, L"KILL") == 0)
 	{
-		std::lock_guard<std::recursive_mutex> lock(measure->mutex);
 		if (measure->threadActive && measure->hProc != INVALID_HANDLE_VALUE)
 		{
 			if (!TerminateApp(measure->hProc, measure->dwPID, (_wcsicmp(args, L"KILL") == 0)))
 			{
-				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+				measure->value = 105.0f;
+				RmLogF(measure->rm, LOG_ERROR, err_Terminate, measure->program.c_str());	// Could not terminate process (very rare!)
 			}
 		}
 		else
 		{
-			RmLog(LOG_ERROR, err_NotRunning);	// Command not running
+			measure->value = 102.0f;
+			RmLogF(measure->rm, LOG_ERROR, err_NotRunning, measure->program.c_str());	// Command not running
 		}
 	}
 	else
 	{
-		RmLog(LOG_NOTICE, err_UnknownCmd);	// Unknown command
+		measure->value = 100.0f;
+		RmLogF(measure->rm, LOG_NOTICE, err_UnknownCmd, measure->program.c_str());	// Unknown command
 	}
 }
 
@@ -194,7 +192,8 @@ PLUGIN_EXPORT void Finalize(void* data)
 		{
 			if (!TerminateApp(measure->hProc, measure->dwPID, (measure->state == SW_HIDE)))
 			{
-				RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+				measure->value = 105.0f;
+				RmLogF(measure->rm, LOG_ERROR, err_Terminate, measure->program.c_str());	// Could not terminate process (very rare!)
 			}
 
 			// Increment ref count of this module so that it will not be
@@ -225,6 +224,7 @@ void RunCommand(Measure* measure)
 	lock.unlock();
 
 	std::wstring result = L"";
+	bool error = false;
 
 	HANDLE read = INVALID_HANDLE_VALUE;
 	HANDLE write = INVALID_HANDLE_VALUE;
@@ -345,7 +345,11 @@ void RunCommand(Measure* measure)
 				{
 					if (!TerminateApp(pi.hProcess, pi.dwProcessId, (state == SW_HIDE)))
 					{
-						RmLog(LOG_ERROR, err_Terminate);	// Could not terminate process (very rare!)
+						lock.lock();
+							measure->value = 105.0f;
+							RmLogF(measure->rm, LOG_ERROR, err_Terminate, measure->program.c_str());	// Could not terminate process (very rare!)
+							error = true;
+						lock.unlock();
 					}
 					break;
 				}
@@ -367,12 +371,20 @@ void RunCommand(Measure* measure)
 		}
 		else
 		{
-			RmLog(LOG_ERROR, err_Process);	// Cannot create process
+			lock.lock();
+				measure->value = 103.0f;
+				RmLogF(measure->rm, LOG_ERROR, err_Process, measure->program.c_str());	// Cannot start process
+				error = true;
+			lock.unlock();
 		}
 	}
 	else
 	{
-		RmLog(LOG_ERROR, err_CreatePipe);	// Cannot create pipe
+		lock.lock();
+			measure->value = 106.0f;
+			RmLog(measure->rm, LOG_ERROR, err_CreatePipe);	// Cannot create pipe
+			error = true;
+		lock.unlock();
 	}
 
 	// Close handles
@@ -419,13 +431,22 @@ void RunCommand(Measure* measure)
 			}
 			else
 			{
-				RmLog(LOG_ERROR, err_SaveFile);	// Cannot save file
+				measure->value = 104.0f;
+				RmLogF(measure->rm, LOG_ERROR, err_SaveFile, measure->outputFile.c_str());	// Cannot save file
+				error = true;
 			}
 
 			if (file)
 			{
 				fclose(file);
 			}
+		}
+
+		// If no errors from the thread,
+		// set number value of measure to 1 to indicate "Success".
+		if (!error)
+		{
+			measure->value = 1.0f;
 		}
 
 		measure->threadActive = false;
