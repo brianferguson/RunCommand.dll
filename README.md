@@ -121,7 +121,7 @@ Examples
 -
 
 ####Example 1:
-Click on each command and the output will appear in the "output" meter (if any output is expected).
+Click on each command and the output will appear in the "output" meter (if any output is expected). A "status" will appear next to each command.
 
 ```ini
 [Rainmeter]
@@ -129,78 +129,175 @@ Update=1000
 BackgroundMode=2
 SolidColor=0,0,0
 
+[Metadata]
+Name=RunCommand
+Author=Brian
+Information=Click on each command and the RunCommand plugin will attempt to run the command. Output is given at the bottom.
+License=Creative Commons Attribution-Non-Commercial-Share Alike 3.0
+Version=0.0.1.4 (Beta)
+
+; Because the default program is "%ComSpec% /U /C", the output should be in UTF16 for common commands like "dir".
+; But not all commands will output in UTF16 (see the "wmic" command below).
 [Command_1]
 Measure=Plugin
 Plugin=RunCommand
 Parameter=dir
-State=Hide
-;StartInFolder=C:\
-OutputFile=test.txt
-;OutputType=UTF16
-FinishAction=[!SetOption Output SolidColor "0,0,255"][!SetOption Output MeasureName Command_1][!UpdateMeter Output][!Redraw]
+OutputFile=Command1.txt
+FinishAction=[!UpdateMeasure #CURRENTSECTION#][!SetOption Output MeasureName Command_1][!UpdateMeter Output][!Redraw]
+IfBelowValue=1
+IfBelowAction=[!SetOption Status_1 SolidColor "0,0,0"][!UpdateMeter Status_1]
+IfEqualValue=1
+IfEqualAction=[!SetOption Status_1 SolidColor "0,102,0"][!UpdateMeter Status_1]
+IfAboveValue=1
+IfAboveAction=[!SetOption Status_1 SolidColor "255,0,0"][!UpdateMeter Status_1][!About]
 
+
+; The wmic command seems to output in ANSI format, so set OutputType=ANSI
 [Command_2]
 Measure=Plugin
 Plugin=RunCommand
-Program=C:\Windows\System32\Notepad.exe
-Parameter=test.txt
-State=Maximize
-Timeout=5000
-FinishAction=[!SetOption Output SolidColor "255,0,0"][!SetOption Output MeasureName Command_2][!UpdateMeter Output][!Redraw]
+Parameter=wmic os get lastbootuptime
+OutputFile=Command2.txt
+OutputType=ANSI
+FinishAction=[!UpdateMeasure #CURRENTSECTION#][!SetOption Output MeasureName Command_2][!UpdateMeter Output][!Redraw]
+;Output in "yyyymmddHHMMSS.mmmmmmsUUU" format (CIM_DATETIME).
+IfBelowValue=1
+IfBelowAction=[!SetOption Status_2 SolidColor "0,0,0"][!UpdateMeter Status_2]
+IfEqualValue=1
+IfEqualAction=[!SetOption Status_2 SolidColor "0,102,0"][!UpdateMeter Status_2]
+IfAboveValue=1
+IfAboveAction=[!SetOption Status_2 SolidColor "255,0,0"][!UpdateMeter Status_2][!About]
 
 [Command_3]
 Measure=Plugin
 Plugin=RunCommand
-Parameter=wmic os get lastbootuptime
-OutputFile=test.txt
+Parameter=wmic path win32_utctime get month, day, year, hour, minute, second, dayofweek, quarter, weekinmonth
+OutputFile=Command3.txt
 OutputType=ANSI
-FinishAction=[!SetOption Output SolidColor "255,0,255"][!SetOption Output MeasureName Command_3][!UpdateMeter Output][!Redraw]
-;Output in "yyyymmddHHMMSS.mmmmmmsUUU" format (CIM_DATETIME). :-)
-Substitute="LastBootUpTime":"","#CRLF#":""," ":""
+FinishAction=[!UpdateMeasure #CURRENTSECTION#][!SetOption Output MeasureName Command_3][!UpdateMeter Output][!Redraw]
+IfBelowValue=1
+IfBelowAction=[!SetOption Status_3 SolidColor "0,0,0"][!UpdateMeter Status_3]
+IfEqualValue=1
+IfEqualAction=[!SetOption Status_3 SolidColor "0,102,0"][!UpdateMeter Status_3]
+IfAboveValue=1
+IfAboveAction=[!SetOption Status_3 SolidColor "255,0,0"][!UpdateMeter Status_3][!About]
 
+; dir command with an invalid OutputFile. The output will be fine, but there will be an error when saving the file.
 [Command_4]
 Measure=Plugin
 Plugin=RunCommand
-Parameter=wmic path win32_utctime get month, day, year, hour, minute, second, dayofweek, quarter, weekinmonth
-OutputType=ANSI
-FinishAction=[!SetOption Output SolidColor "0,102,0"][!SetOption Output MeasureName Command_4][!UpdateMeter Output][!Redraw]
+Parameter=dir
+OutputFile=<InvalidFile>.txt
+FinishAction=[!UpdateMeasure #CURRENTSECTION#][!SetOption Output MeasureName Command_4][!UpdateMeter Output][!Redraw]
+IfBelowValue=1
+IfBelowAction=[!SetOption Status_4 SolidColor "0,0,0"][!UpdateMeter Status_4]
+IfEqualValue=1
+IfEqualAction=[!SetOption Status_4 SolidColor "0,102,0"][!UpdateMeter Status_4]
+IfAboveValue=1
+IfAboveAction=[!SetOption Status_4 SolidColor "255,0,0"][!UpdateMeter Status_4][!About]
+
+; Example of an invalid program (eg. typo in the Program option)
+[Command_5]
+Measure=Plugin
+Plugin=RunCommand
+Program=""%WINDIR%\system32\Notepad.exr""
+FinishAction=[!UpdateMeasure #CURRENTSECTION#][!SetOption Output MeasureName Command_5][!UpdateMeter Output][!Redraw]
+IfBelowValue=1
+IfBelowAction=[!SetOption Status_5 SolidColor "0,0,0"][!UpdateMeter Status_5]
+IfEqualValue=1
+IfEqualAction=[!SetOption Status_5 SolidColor "0,102,0"][!UpdateMeter Status_5]
+IfAboveValue=1
+IfAboveAction=[!SetOption Status_5 SolidColor "255,0,0"][!UpdateMeter Status_5][!About]
+
+
+[sLabel]
+Y=2R
+W=300
+H=12
+FontFace=Lucida Console
+FontSize=9
+FontColor=255,255,255,150
+AntiAlias=1
+MouseOverAction=[!SetOption #CURRENTSECTION# FontColor 255,255,255][!UpdateMeter #CURRENTSECTION#][!Redraw]
+MouseLeaveAction=[!SetOption #CURRENTSECTION# FontColor 255,255,255,150][!UpdateMeter #CURRENTSECTION#][!Redraw]
+
+[sStatus]
+X=10R
+Y=r
+W=265
+FontColor=255,255,255
+Prefix="Status: "
+DynamicVariables=1
+MouseOverAction=""
+MouseLeaveAction=""
 
 [Label_1]
 Meter=String
-FontColor=255,255,255
+MeterStyle=sLabel
 Text=Command: dir
-LeftMouseUpAction=!CommandMeasure Command_1 Run
+LeftMouseUpAction=[!CommandMeasure Command_1 Run][!UpdateMeasure Command_1][!UpdateMeter Status_1][!Redraw]
+
+[Status_1]
+Meter=String
+MeterStyle=sLabel | sStatus
+Text=[Command_1:]
 
 [Label_2]
 Meter=String
-FontColor=255,255,255
-Text=Command: Notepad
-X=22R
-LeftMouseUpAction=!CommandMeasure Command_2 Run
+MeterStyle=sLabel
+Text=Command: wmic os get lastboottime
+LeftMouseUpAction=[!CommandMeasure Command_2 Run][!UpdateMeasure Command_2][!UpdateMeter Status_2][!Redraw]
+
+[Status_2]
+Meter=String
+MeterStyle=sLabel | sStatus
+Text=[Command_2:]
 
 [Label_3]
 Meter=String
-FontColor=255,255,255
-Text=Command: wmic os get lastbootuptime
-X=22R
-LeftMouseUpAction=!CommandMeasure Command_3 Run
+MeterStyle=sLabel
+Text=Command: wmic path win32_utctime
+LeftMouseUpAction=[!CommandMeasure Command_3 Run][!UpdateMeasure Command_3][!UpdateMeter Status_3][!Redraw]
+
+[Status_3]
+Meter=String
+MeterStyle=sLabel | sStatus
+Text=[Command_3:]
 
 [Label_4]
 Meter=String
-FontColor=255,255,255
-Text=Command: wmic path win32_utctime
-Y=2R
-LeftMouseUpAction=!CommandMeasure Command_4 Run
+MeterStyle=sLabel
+Text=Command: dir (with invalid OutputFile)
+LeftMouseUpAction=[!CommandMeasure Command_4 Run][!UpdateMeasure Command_4][!UpdateMeter Status_4][!Redraw]
+
+[Status_4]
+Meter=String
+MeterStyle=sLabel | sStatus
+Text=[Command_4:]
+
+[Label_5]
+Meter=String
+MeterStyle=sLabel
+Text=Command: Notepad.exr (Typo in Program)
+LeftMouseUpAction=[!CommandMeasure Command_5 Run][!UpdateMeasure Command_5][!UpdateMeter Status_5][!Redraw]
+
+[Status_5]
+Meter=String
+MeterStyle=sLabel | sStatus
+Text=[Command_5:]
+
 
 [Output]
 Meter=String
 MeasureName=Command_1
+MeterStyle=sLabel
 Y=5R
-W=550
-H=150
-ClipString=1
+W=575
+H=200
 FontColor=255,255,255
-FontFace=Lucida Console
-FontSize=9
-AntiAlias=1
+ClipString=1
+SolidColor=50,50,50
+Padding=0,2,0,0
+MouseOverAction=""
+MouseLeaveAction=""
 ```
