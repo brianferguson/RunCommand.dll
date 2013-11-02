@@ -178,7 +178,7 @@ PLUGIN_EXPORT void Finalize(void* data)
 {
 	Measure* measure = (Measure*)data;
 
-	std::lock_guard<std::recursive_mutex> lock(measure->mutex);
+	std::unique_lock<std::recursive_mutex> lock(measure->mutex);
 
 	if (measure->threadActive)
 	{
@@ -199,6 +199,7 @@ PLUGIN_EXPORT void Finalize(void* data)
 		return;
 	}
 
+	lock.unlock();
 	delete measure;
 }
 
@@ -453,7 +454,6 @@ void RunCommand(Measure* measure)
 	}
 
 	lock.unlock();
-
 	delete measure;
 
 	DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
