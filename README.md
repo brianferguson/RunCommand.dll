@@ -1,4 +1,4 @@
-RunCommand.dll (Beta)
+RunCommand.dll
 =============
 
 RunCommand.dll is a plugin for [Rainmeter](http://www.rainmeter.net) that will run programs in a normal/hidden/minimized/maximized state. This plugin will also attempt to retrieve any output (stdout) from the program and set that to the "string" value of the plugin.
@@ -67,6 +67,7 @@ Changes
 Here is a list of the major changes to the plugin.
 
 #####Version:
+* **1.0.0.0** - Fixed crash when unloading due to locked mutex.
 * **0.0.1.4** - Fixed buffer overrun issue with a large amount of data being output. Improved logging of errors. Number value of measure will now indicate a "success" code or "error code".
 * **0.0.1.3** - Improved performance when waiting for the program to finish. Programs are terminated on skin refresh (or Rainmeter exit) regardless of `State`. Changed `Timeout` behavior.
 * **0.0.1.2** - Added the `Close` and `Kill` commands.
@@ -296,7 +297,7 @@ W=575
 H=200
 FontColor=255,255,255
 ClipString=1
-SolidColor=50,50,50
+SolidColor=50,50,50,100
 Padding=0,2,0,0
 MouseOverAction=""
 MouseLeaveAction=""
