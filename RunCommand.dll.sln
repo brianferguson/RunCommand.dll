@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PluginRunCommand", "PluginRunCommand\PluginRunCommand.vcxproj", "{4ABFBA48-C1DF-44B5-992F-3CFAEDE48974}"
 EndProject
 Global

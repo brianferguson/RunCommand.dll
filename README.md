@@ -67,6 +67,7 @@ Changes
 Here is a list of the major changes to the plugin.
 
 #####Version:
+* **1.1.0.50** - Updated to VS2013 and fixed runtime linking. Now statically links to runtime (note the increased size of the plugin). Also, fixed version numbering to match github commit numbering.
 * **1.0.0.0** - Fixed crash when unloading due to locked mutex.
 * **0.0.1.4** - Fixed buffer overrun issue with a large amount of data being output. Improved logging of errors. Number value of measure will now indicate a "success" code or "error code".
 * **0.0.1.3** - Improved performance when waiting for the program to finish. Programs are terminated on skin refresh (or Rainmeter exit) regardless of `State`. Changed `Timeout` behavior.
